@@ -1,0 +1,278 @@
+---
+title: "Lab01. Cluster analisis. pobreza nbi"
+author: "Beatriz Valdez"
+date: "2024-11-01"
+output: 
+  html_document: 
+    toc_depth: 4
+    highlight: tango
+    theme: cerulean
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+load("~/semanal/SOCIOLOGIA/markdowns/milenia_completo.RData")
+
+```
+
+## Introducción 
+
+Sigo trabajando con la información proveniente de la encuesta "milenia", a la cual se le han agregado otras variables. En esta ocasión clasificaremos los encuestados de acuerdo con el método de "Necesidades Básicas Insatisfechas", NBI. Consulte [INE](ine.gob.ve) en la ficha técnica de la pobreza NBI, para comprender tanto los indicadores como las variables necesarias para calcular el NBI en Venezuela.
+
+### Obtención de la data
+
+```{r paquetes}
+
+####################### Paquetes necesarios: #######################
+pacman::p_load(
+  tidyverse,  # Es una colección de paquetes que te proporciona todas las herramientas necesarias para trabajar con datos en R.
+  readxl, # permite leer archivos de Excel (.xlsx y .xls) y convertirlos en data frames de R.
+  janitor, # ayuda a limpiar y organizar nuestros datos
+  skimr # ofrece un resumen rápido de nuestros datos facilitando la exploración posterio.
+  )
+
+```
+
+
+Para cargar datos de Excel en R, uso la función read_excel() del paquete readxl. Aquí coloco la ruta de mi computadora en donde tengo la data. Indica tu ruta completa al archivo y, si hay varias hojas en el libro de Excel, especifica el nombre de la hoja que deseas importar. Ejemplo: 
+
++ __datos <- read_excel("ruta/a/tu/archivo.xlsx", sheet = "Hoja2")__.
+
+```{r eval=FALSE}
+
+########################## Subir la data ###########################
+
+encuesta <- read_excel(
+  "c:/Users/BeVA/Documents/semanal/Sociologia/completo.xlsx", 
+                               sheet = "NBI", na = "NA") 
+
+```
+
+
++ Ruta: Indica la ubicación exacta del archivo (ej:  "mis_datos/encuesta.xlsx").
++ Hoja: Especifica el nombre de la hoja si hay más de una.
++ NA: Define cómo identificar valores faltantes (ej: na = "NA").
+
+
+Error común: Si no puedes hacer operaciones matemáticas con las variables que, se suponen, deben ser numéricas, revisa la forma como cargaste la data.  R convierte números en texto si hay algún carácter que parezca texto. Revisa la(s) columna(s) que causa el problema y asegúrate de que no haya caracteres extra o formatos incorrectos.
+
+### Exploración y limpieza
+
+```{r exploroData}
+#################### Exploro el marco de datos #####################
+
+# verifico los nombres de las variables
+names(milenia_completo)
+
+```
+
+En general, cuando recibimos datos que no han sido recogidos bajo supervisión estricta, los datos suelen traer serios problemas. Por ejemplo, los nombres de las variables pueden estar un poco desordenados: quizás tengan mayúsculas y minúsculas mezcladas, espacios, guiones bajos o incluso caracteres especiales (acentos diacríticos). Esto puede hacer que sea difícil trabajar con los datos y escribir código de manera eficiente.
+
+Para solucionar este problema, utilizamos el paquete janitor y la función clean_names(). Esta función toma todos los nombres de las variables en nuestros marcos de datos y los convierte a un formato estándar, más fácil de manejar. Por ejemplo, si tienes una variable llamada "Edad_en_años", la función la convertirá a "edad_en_anos".
+
+```{r}
+milenia_completo <- milenia_completo %>% 
+  clean_names()
+
+
+# verifico
+names(milenia_completo)
+```
+
+
+La línea de código __milenia_completo <- milenia_completo %>% clean_names()__ es una forma rápida y sencilla de mejorar la calidad delmarco de datos y facilitar el análisis. Limpiar los nombres de las variables es un primer paso importante para realizar un análisis de datos más eficiente y preciso. 
+
++ __milenia_completo__: Este es el nombre que se le ha dado al libro de excel. Al subir la hoja de excel, he dejado el mismo nombre. Como ya lo he mencionado antes, piensa en nombre que se le da a los marcos de datos como una caja donde tienes/guardas toda la información de, en este caso, la encuesta.
++ __%>%__: Este símbolo se llama "pipe" y se usa para conectar diferentes operaciones en R. Es como una flecha que dice: "toma el resultado de lo anterior y pásalo a la siguiente función". Consulte el material que se le ha recomendado para manejar el concepto y los procedimientos con [pipe](https://es.r4ds.hadley.nz/18-pipes.html).
++ __clean_names()__: Esta es la función mágica del paquete janitor que se encarga de limpiar los nombres de las variables. Toma la base de datos milenia_completo y devuelve una nueva versión con los nombres de las variables limpios.
++ __<-__: Este símbolo significa "asignación". Toma el resultado de la función clean_names() y lo guarda en una nueva variable llamada milenia_completo. Así, estamos reemplazando la base de datos original con la versión limpia.
+
+¿Por qué es importante limpiar los nombres de las variables?
+
++ __Facilita la escritura de código__: Cuando los nombres de las variables son claros y concisos, es más fácil escribir código para analizar los datos.
++ __Evita errores__: Los nombres de variables ambiguos pueden llevar a errores en el análisis.
++ __Mejora la legibilidad del código__: Un código con nombres de variables claros es más fácil de entender para otras personas.
+
+```{r usandoSkim, cache=TRUE}
+# verifico el tipo de variables y sus caracteristicas, empleo el
+# paquete skimr, la funcion skim()
+
+skim(milenia_completo)
+
+```
+
+
+## Cálculo la pobreza según NBI
+
+>Actividad 1: 
+Antes de desarrollar este tema, investiga y responde los siguientes aspectos:
+
++ Definición: Explica qué es el NBI y cómo se utiliza para medir la pobreza multidimensional.
++ Ventajas: Destaca la capacidad del NBI para identificar carencias en diversas dimensiones de la vida (vivienda, educación, servicios básicos, etc.).
++ Limitaciones: Menciona las críticas al método, por ejemplo, la subjetividad en la selección de indicadores y la dificultad de comparar resultados entre diferentes contextos.
++ Tabla comparativa: Presenta una tabla que resuma los indicadores más comunes utilizados en estudios de NBI.
++ Teoría: Establece los valores umbral para cada indicador, por debajo de los cuales se considera que la necesidad no está satisfecha.
+
+### Asistencia a la Escuela
+
++ Niños entre 7 y 12 años que no asisten a la escuela,              
+    + Si asisten a la escuela el valor es 0                             +  Si no asisten, el valor es 1 (la necesidad está insatisfecha)
+
+```{r inasistencia}
+
+encuesta <- milenia_completo %>% 
+  mutate(inasistencia = case_when(
+    asiste == "No" & edad >= 7 & edad <= 12 ~ 1,
+    TRUE ~ 0 ))
+  
+
+```
+
+Lo que este código hace es crear una nueva variable llamada "inasistencia" dentro de esta encuesta. Esta nueva variable nos servirá para identificar a las personas que cumplen ciertas condiciones: que hayan respondido "No" a la pregunta de si asisten a algún tipo de actividad y que tengan una edad entre 7 y 12 años. Paso a paso, lo que el código le indica a R es lo siguiente:
+
+1. encuesta <- milenia_completo %>%:
+
+  + encuesta: Le estamos dando un nuevo nombre a nuestra encuesta, para no perder la original.
+  + <-: Este símbolo significa "asignación", es decir, estamos diciendo que todo lo que esté a la derecha del símbolo se guardará en la variable de la izquierda.
+  + %>%: Este símbolo se llama "pipe" y se usa para conectar diferentes operaciones en R. Es como una flecha que dice: "toma el resultado de lo anterior y pásalo a la siguiente función".
+  
+1. mutate(inasistencia = case_when(...)):
+
+  + mutate(): Esta función se utiliza para crear nuevas variables en un conjunto de datos.
+  + inasistencia: Este es el nombre que le estamos dando a la nueva variable que vamos a crear.
+  + case_when(): Esta función nos permite crear una nueva variable basada en diferentes condiciones. Es como decir: "Si se cumple esta condición, entonces la nueva variable tendrá este valor; si se cumple otra condición, entonces tendrá otro valor, y así sucesivamente".
+  + asiste == "No" & edad >= 7 & edad <= 12 ~ 1: Esta parte de la función establece la primera condición. Si una persona respondió "No" a la pregunta de si asiste y tiene una edad entre 7 y 12 años, entonces la nueva variable "inasistencia" tomará el valor 1.
+  + TRUE ~ 0: Esta parte establece una condición general. Si ninguna de las condiciones anteriores se cumple (es decir, si la persona asiste o no tiene entre 7 y 12 años), entonces la nueva variable "inasistencia" tomará el valor 0.
+  
+Verifico qué resultado he obtenido:
+
+```{r comprueboInasistencia}
+
+table(encuesta$inasistencia)
+
+```
+ 
+ Hay tres casos en los que niños entre 7 y 12 años no asisten a la escuela. Desde este primero punto de vista, si sólo tomamos esta variable como indicativo de NBI, el 97% de los encuestados estarían en condición de "no pobres".
+ 
+ >  Actividad 2: 
+ (2.1) Identificar a los estudiantes de primaria que faltan mucho a clases. Crea una nueva columna en tu marco de datos llamada "falta mucho" y asignarle un valor de 1 a aquellos estudiantes que cumplen con los criterios (edad entre 7 y 18 años y muchas faltas) y un valor de 0 a los demás. (2.2) ¿Qué significa el símbolo ==?.
+(2.3) ¿Qué son los operadores lógicos & y |?
+(2.4) ¿Cómo podría crear condiciones más complejas?
+(2.5) ¿Qué otras funciones de dplyr puedo usar para manipular datos?
+ 
+### hogares con hacinamiento critico
+
+> Actividad 3:
+(3.1) Establezca los criterios para calcular el hacinamiento critico.
+(3.2) Explique el código empleado.
+(3.3) Verifique el resultado y explique cómo se observaría la pobreza por el NBI si sólo se tomara en cuenta esta variable.
+
+
+```{r hacinamiento}
+# hacinamiento critico
+encuesta <- encuesta %>% 
+  mutate(hacinamiento = case_when(
+    personas_habitacion >= 3 ~ 1,
+    TRUE ~ 0 
+  )
+   )
+
+```
+
+### Carencia de servicios basicos
+
+```{r viviendaInadecuada}
+encuesta %>%
+  mutate(vivienda_inadecuada= case_when(
+    tipo_vivienda == "quinta" | tipo_vivienda == "apartamento" ~ 0,
+    TRUE ~ 1 
+  )
+  ) -> encuesta # observe que guardo usando una manera distinta
+
+table(encuesta$vivienda_inadecuada)
+```
+
+Dado que ya se ha explicado gran parte de este código, en edelante sólo agregaré lo que agregue información adicional, o que sea relevante para la comprensión:
+
++ tipo_vivienda == "quinta" | tipo_vivienda == "apartamento" ~ 0: Esta parte de la función dice: "Si el tipo de vivienda es 'quinta' O si el tipo de vivienda es 'apartamento', entonces asigna el valor 0 a la nueva columna 'vivienda_inadecuada'".
++ TRUE ~ 1: Esta parte dice: "Si ninguna de las condiciones anteriores se cumple (es decir, si el tipo de vivienda no es 'quinta' ni 'apartamento'), entonces asigna el valor 1 a la nueva columna 'vivienda_inadecuada'".
++ -> encuesta: Finalmente, esta parte toma el resultado de todas estas operaciones y lo guarda nuevamente en la variable encuesta, pero ahora con la nueva columna añadida. Note que esta asignación puedo hacerlo al inicio del código, en cuyo caso la asignación es __<-__, o al final del código, en cuyo caso la asignación es __->__. 
+
+### Servicios básicos
+
+> Actividad 4: Desarrolle el código necesario para obtener esta variable. No olvide crear la variable y agregarla a su marco de datos.
+
+En esta variable he obtenido que el 59% de los encuestados no tienen acceso al agua potable
+
+```{r serviciosBasicos}
+encuesta %>%
+  mutate(servicios_basicos = case_when(
+    conexion_agua_potable == "si" ~ 0,
+    TRUE ~ 1 
+  )
+  ) -> encuesta # observe que guardo usando una mane
+
+table(encuesta$servicios_basicos)
+
+```
+
+>Actividad: Cree una variable en la que tome en cuenta si el encuestado tiene o no conexión a aguas servidas.
+
+### Alta dependecia economica
+
+Basándonos en la definición del INE, un hogar presenta alta dependencia económica si cumple ambas condiciones:
+
++ Bajo nivel educativo del jefe de hogar: El jefe de hogar tiene menos de 3 años o grados de educación formal (2do grado o menos), y 
++ Alta razón de dependencia: Hay más de 3 personas por cada ocupado + en el hogar.
+Esto me sugiere que es buena idea dividir este analisis en varios pasos:
+
++  creo una variable para el nivel educativo
++  luego creo una variable para la alta dependencia
++  finalmente con base en estas dos variable determino el alto nivel de dependencia
+
+```{r dependencia}
+encuesta <- encuesta %>%
+  mutate(baja_escolaridad =  case_when(
+    escolaridad_jefe_hogar == "2do grado" | escolaridad_jefe_hogar == "1er grado"  ~ "baja",
+    TRUE ~ "no baja"
+    
+  )
+  )
+
+table(encuesta$baja_escolaridad)
+
+encuesta %>%
+  mutate(dependencia = round(cuantas_personas_casa /  cuantos_trabajan),
+         nivel_dependencia = case_when(
+           dependencia > 3  ~ "Alta",
+           TRUE ~ "baja"
+           
+         )
+  ) -> encuesta
+
+
+```
+ 
+>Actividad 5: explique lo que se ha hecho con estos códigos
+
+
+Tengo el nivel de dependencia y la escolaridad, creo entonces la variable  "alta_dependencia_econ"
+
+```{r}
+encuesta <- encuesta %>% 
+  mutate(alta_dependencia_econ = case_when(
+    baja_escolaridad == "baja" & nivel_dependencia == "Alta" ~ 1,
+    TRUE ~ 0
+    
+  ))
+
+table(encuesta$alta_dependencia_econ)
+
+```
+
+
+> Su turno. 
+
+1. Calcule ahora el nivel de pobreza segun NBI siguiendo la clasificacion que le proporciona el material __Hacia un sistema de indicadores sociales__, (Rob Vos, 1996,) 
+1. indique el numero de hogares cruzando los resultados de la pobreza por el metodo de linea de pobreza y los resultados del NBI
